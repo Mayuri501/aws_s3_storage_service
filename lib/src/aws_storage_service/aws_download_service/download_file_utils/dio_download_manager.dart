@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dio/native_imp.dart';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 
 ///[DioDownloadManager] creates room for resumed downloads
 class DioDownloadManager extends DioForNative {
@@ -36,8 +36,8 @@ class DioDownloadManager extends DioForNative {
         queryParameters: queryParameters,
         cancelToken: cancelToken ?? CancelToken(),
       );
-    } on DioError catch (e) {
-      if (e.type == DioErrorType.response) {
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.badResponse) {
         if (e.response!.requestOptions.receiveDataWhenStatusError == true) {
           var res = await transformer.transformResponse(
             e.response!.requestOptions..responseType = ResponseType.json,
@@ -137,7 +137,7 @@ class DioDownloadManager extends DioForNative {
           try {
             await subscription.cancel();
           } finally {
-            completer.completeError(DioMixin.assureDioError(
+            completer.completeError(DioMixin.assureDioException(
               err,
               response.requestOptions,
             ));
@@ -151,7 +151,7 @@ class DioDownloadManager extends DioForNative {
           await raf.close();
           completer.complete(response);
         } catch (e) {
-          completer.completeError(DioMixin.assureDioError(
+          completer.completeError(DioMixin.assureDioException(
             e,
             response.requestOptions,
           ));
@@ -161,7 +161,7 @@ class DioDownloadManager extends DioForNative {
         try {
           await _closeAndDelete();
         } finally {
-          completer.completeError(DioMixin.assureDioError(
+          completer.completeError(DioMixin.assureDioException(
             e,
             response.requestOptions,
           ));
@@ -175,10 +175,11 @@ class DioDownloadManager extends DioForNative {
       await _closeAndDelete();
     });
 
-    if (response.requestOptions.receiveTimeout > 0) {
+    if ((response.requestOptions.receiveTimeout?.inMilliseconds ?? 0) > 0) {
       future = future
           .timeout(Duration(
-        milliseconds: response.requestOptions.receiveTimeout,
+        milliseconds:
+            response.requestOptions.receiveTimeout?.inMilliseconds ?? 0,
       ))
           .catchError((Object err) async {
         await subscription.cancel();
